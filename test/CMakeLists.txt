@@ -1,0 +1,3 @@
+
+add_executable(test_exception test_exception.cpp)
+target_link_libraries(test_exception npc)
