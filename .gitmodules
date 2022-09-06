@@ -1,0 +1,6 @@
+[submodule "third/oneTBB"]
+	path = third/oneTBB
+	url = https://github.com/oneapi-src/oneTBB.git
+[submodule "third/fmt"]
+	path = third/fmt
+	url = git@github.com:fmtlib/fmt.git

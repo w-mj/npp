@@ -2,12 +2,12 @@
 // Created by WMJ on 2022/9/4.
 //
 
-#ifndef NPC_UTILS_H
-#define NPC_UTILS_H
+#ifndef NPP_UTILS_H
+#define NPP_UTILS_H
 #include <string>
 
-namespace NPC {
+namespace NPP {
     std::string exec(const char* cmd);
 }
 
-#endif //NPC_UTILS_H
+#endif //NPP_UTILS_H

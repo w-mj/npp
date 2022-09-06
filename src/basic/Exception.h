@@ -2,14 +2,15 @@
 // Created by WMJ on 2022/9/3.
 //
 
-#ifndef NPC_EXCEPTION_H
-#define NPC_EXCEPTION_H
+#ifndef NPP_EXCEPTION_H
+#define NPP_EXCEPTION_H
 
 #include <stdexcept>
 #include <iostream>
 #include <bits/types/siginfo_t.h>
+#include <fmt/format.h>
 
-namespace NPC {
+namespace NPP {
 constexpr size_t dump_size = 128;
 
 class Exception: public std::exception {
@@ -36,6 +37,11 @@ public:
     explicit RangeException(const char* s): Exception(s) {}
 };
 
-} // NPC
+class RuntimeException: public Exception {
+public:
+    explicit RuntimeException(const char *s): Exception(s) {}
+};
 
-#endif //NPC_EXCEPTION_H
+} // NPP
+
+#endif //NPP_EXCEPTION_H

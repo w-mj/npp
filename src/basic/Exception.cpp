@@ -26,7 +26,7 @@ static std::string Addr2LinePrint(void const * const addr, const char *execFile)
 {
     char addr2lineCmd[512] = {0};
     sprintf(addr2lineCmd, "addr2line -C -i -f -p -s -a -e %s %p ", execFile, addr);
-    return NPC::exec(addr2lineCmd);
+    return NPP::exec(addr2lineCmd);
 }
 
 
@@ -92,7 +92,7 @@ void* CalculateOffset(char * stackFrameString, char **execFile) {
 
 
 
-namespace NPC {
+namespace NPP {
     Exception::Exception(): Exception("no info") {
 
     }
@@ -144,7 +144,7 @@ namespace NPC {
     }
 
     void Exception::initExceptionHandler() {
-        std::set_terminate(NPC::Exception::terminate_handler);
+        std::set_terminate(NPP::Exception::terminate_handler);
         struct sigaction sig_action = {};
         sig_action.sa_sigaction = Exception::signal_handler;
         sigemptyset(&sig_action.sa_mask);
@@ -164,5 +164,5 @@ namespace NPC {
     SignalException::SignalException(int signum): Exception(strsignal(signum)) {
 
     }
-} // NPC
+} // NPP
 

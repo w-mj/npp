@@ -5,7 +5,7 @@
 #include <basic/exception.h>
 
 void f2(int index) {
-    // throw NPC::RangeException("some info");
+    // throw NPP::RangeException("some info");
     char data[10] = {};
     for (int i = 0; i < index; i++) {
         data[i + 1] = data[i] + data[i + 1];
@@ -19,6 +19,6 @@ void f1() {
 }
 
 int main() {
-    NPC::Exception::initExceptionHandler();
+    NPP::Exception::initExceptionHandler();
     f1();
 }

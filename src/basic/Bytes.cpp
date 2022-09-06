@@ -5,8 +5,9 @@
 #include "Bytes.h"
 #include <cassert>
 #include <cstring>
+#include "basic/Exception.h"
 
-namespace NPC {
+namespace NPP {
     Bytes Bytes::deepcopy() const {
         return {_data, _size};
     }
@@ -22,7 +23,7 @@ namespace NPC {
         this->_data = new unsigned char[size];
     }
 
-    Bytes::Bytes(void* data, size_t size) {
+    Bytes::Bytes(const void* data, size_t size) {
         assert(size > 0);
         assert(data != nullptr);
         this->_size = size;
@@ -34,6 +35,7 @@ namespace NPC {
         _size = ano._size;
         _data = ano._data;
         ano._data = nullptr;
+        ano._size = 0;
     }
 
     Bytes::~Bytes() {
@@ -45,8 +47,18 @@ namespace NPC {
     }
 
     void Bytes::set(size_t size, void *data, size_t start) {
-        assert(start + size <= this->size());
+        if (start + size > this->size()) {
+            throw RangeException(fmt::format("{} + {} > {}", start, size, this->size()).c_str());
+        }
         memcpy(this->_data + start, data, size);
     }
 
-} // NPC
+    Bytes& Bytes::operator=(Bytes &&ano)  noexcept {
+        _size = ano._size;
+        _data = ano._data;
+        ano._data = nullptr;
+        ano._size = 0;
+        return *this;
+    }
+
+} // NPP
