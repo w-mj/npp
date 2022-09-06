@@ -14,8 +14,13 @@
 
 namespace NPP {
 
-    struct PacketHead {
-        uint16_t control;
+    struct MessageHead {
+        uint16_t compress :1;
+        uint16_t verify :1;
+        uint16_t res1 :6;
+        uint16_t type: 3;
+        uint16_t res2: 5;
+
         uint16_t reserved;
         uint32_t size;
     } __attribute((packed));
@@ -54,7 +59,13 @@ namespace NPP {
         SockMap socks;
         int getSendSocket(int rank);
         void clearSendSocket(int rank);
-        void processMessage(PacketHead head, Bytes content, uint32_t verify);
+        void processMessage(MessageHead head, Bytes content, uint32_t verify);
+        void closeSocket(int sock) const;
+
+        void readNormalMessage(int connfd, const MessageHead& message_head);
+        void readRankReportMessage(int connfd, const MessageHead& message_head);
+        bool sendRankReportMessage(int connfd) const;
+        uint32_t readVerify(int connfd);
 
         using MessageQueue = tbb::concurrent_bounded_queue<Bytes>;
         MessageQueue messageQueue;

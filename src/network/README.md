@@ -28,13 +28,24 @@ getMessage函数为阻塞式，即会等待收到一个完整的消息后才会�
 ```
 15             8 7             0
 +-------------------------------+
-|R|R|R|R|R|R|R|R|R|R|R|R|R|R|V|C|
+|R|R|R|R|R| TTT |R|R|R|R|R|R|V|C|
 +-------------------------------+
 ```
 
 + C: 是否启用压缩，1为启用压缩，此时Message Length为压缩后的长度。
 + V: 是否启用校验，启用后Verify Code为Message Content的异或。若不启用校验则Verify Code为固定的0xDEAD_FACE。
++ TTT: 包类型。
+  0. 普通数据包。
+  1. rank报告包。
 + R: 暂时保留。
+
+#### 数据包类型
+根据头中TTT的值选择数据包类型。
+
+0：普通数据包。
+
+1：RANK报告包。当建立连接是应该主动发送RANK报告，方便对方进行连接复用。
+此时Reserve字段用作端口，Message Length字段用作rank号。即报文长度固定为12B。
 
 ### Reserve 保留位
 占用2字节。

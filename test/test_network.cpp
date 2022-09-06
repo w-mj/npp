@@ -11,9 +11,9 @@ int main(int argc, char **argv) {
         myRank = 1;
     }
     NPP::NetworkManager network(myRank);
+    network.startServer();
     if (myRank == 0) {
         // server
-        network.startServer();
         while (network.getMyPort() == 0) {
             ;
         }
@@ -27,11 +27,16 @@ int main(int argc, char **argv) {
             execv(argv[0], aa);
         }
         auto data = network.getMessage();
-        printf("receive : %s\n", &data.as<char>());
+        printf("0: receive : %s\n", &data.as<char>());
+        network.sendMessage(1, {"aaa", 4});
+        sleep(2);
     } else {
         network.registerTarget(0, "127.0.0.1", atoi(argv[1]));
         const char *s = "Hello Network!";
         NPP::Bytes data(s, strlen(s) + 1);
         network.sendMessage(0, std::move(data));
+
+        data = network.getMessage();
+        printf("1: receive : %s\n", &data.as<char>());
     }
 }
