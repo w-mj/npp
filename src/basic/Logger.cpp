@@ -8,6 +8,24 @@
 #include <ctime>
 #include <string>
 
+inline char separator() {
+#ifdef _WIN32
+    return '\\';
+#else
+    return '/';
+#endif
+}
+
+const char *file_name(const char *path) {
+    const char *file = path;
+    while (*path) {
+        if (*path++ == separator()) {
+            file = path;
+        }
+    }
+    return file;
+}
+
 
 static std::string get_time_str() {
     std::string stime;
@@ -34,7 +52,6 @@ namespace NPP {
 
     Logger::Logger(std::string name, bool showTime): name(std::move(name)), time(showTime), out(std::cout) {
     }
-
 
 } // NPP
 

@@ -102,6 +102,7 @@ class NPP::ElasticExecutorImpl: public NPP::Thread {
     bool running = true;
 public:
     void execute(TaskType &&func) {
+        logd("add to elastic executor.");
         taskQueue.push(std::move(func));
     }
 
@@ -143,7 +144,7 @@ public:
     }
 
     ~ElasticExecutorImpl() {
-        logd("stop Elastic Executor");
+        logd("Stop Elastic Executor");
         stop();
     }
 };

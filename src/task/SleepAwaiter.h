@@ -9,15 +9,18 @@
 #include "Scheduler.h"
 #include "coroutine_common.h"
 #include "CommonAwaiter.h"
+#include "basic/Logger.h"
 
 struct SleepAwaiter : Awaiter<void> {
 
   explicit SleepAwaiter(long long duration) noexcept
-      : _duration(duration) {}
+      : _duration(duration) {
+  }
 
   template<typename _Rep, typename _Period>
   explicit SleepAwaiter(std::chrono::duration<_Rep, _Period> &&duration) noexcept
-      : _duration(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()) {}
+      : _duration(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()) {
+  }
 
   void after_suspend() override {
     static Scheduler scheduler;
@@ -28,9 +31,5 @@ struct SleepAwaiter : Awaiter<void> {
   long long _duration;
 };
 
-template<typename _Rep, typename _Period>
-SleepAwaiter sleep_for(std::chrono::duration<_Rep, _Period> &&duration) {
-    return SleepAwaiter(duration);
-}
 
 #endif //CPPCOROUTINES_TASKS_06_SLEEP_SLEEPAWAITER_H_

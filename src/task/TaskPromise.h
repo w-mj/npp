@@ -17,6 +17,7 @@
 #include "SleepAwaiter.h"
 #include "ChannelAwaiter.h"
 #include "CommonAwaiter.h"
+#include "basic/Logger.h"
 
 template<typename AwaiterImpl, typename R>
 concept AwaiterImplRestriction = std::is_base_of<Awaiter<R>, AwaiterImpl>::value;

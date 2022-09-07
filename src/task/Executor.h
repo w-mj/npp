@@ -9,7 +9,6 @@
 #include <mutex>
 #include <functional>
 #include <future>
-#include "io_utils.h"
 
 class AbstractExecutor {
  public:

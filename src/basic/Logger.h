@@ -9,6 +9,8 @@
 #include <sstream>
 #include <fmt/format.h>
 
+const char *file_name(const char *path);
+
 namespace NPP {
     class Logger {
        std::string name;
@@ -46,8 +48,12 @@ namespace NPP {
         }
 
         template<typename ...Args>
-        void debug(Args... args) {
-            print("[DEBUG] ", format(args...));
+        void debug(const char*file, int line, Args... args) {
+            if (file) {
+                print("[DEBUG] ", fmt::format("{}:{} ", file_name(file), line), format(args...));
+            } else {
+                print("[DEBUG] ", format(args...));
+            }
         }
     };
 
@@ -60,6 +66,12 @@ namespace NPP {
 #define logi(...) NPP::Log::global.info(__VA_ARGS__)
 #define logw(...) NPP::Log::global.warning(__VA_ARGS__)
 #define loge(...) NPP::Log::global.error(__VA_ARGS__)
-#define logd(...) NPP::Log::global.debug(__VA_ARGS__)
+
+#ifdef DEBUG
+#define logd(...) NPP::Log::global.debug(__FILE__, __LINE__, __VA_ARGS__)
+#else
+#define logd(...) do {} while(0)
+#endif
+#define tick()    logd("tick")
 
 #endif //NPP_LOGGER_H

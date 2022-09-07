@@ -10,8 +10,7 @@
 #include <queue>
 #include <functional>
 #include <chrono>
-
-#include "io_utils.h"
+#include "basic/Logger.h"
 
 class DelayedExecutable {
  public:
@@ -103,6 +102,7 @@ class Scheduler {
     std::unique_lock lock(queue_lock);
     if (is_active.load(std::memory_order_relaxed)) {
       bool need_notify = executable_queue.empty() || executable_queue.top().delay() > delay;
+      // logd("add delay task {}", delay);
       executable_queue.push(DelayedExecutable(std::move(func), delay));
       lock.unlock();
       if (need_notify) {
