@@ -10,9 +10,13 @@
 #include <list>
 
 using TaskType = std::function<void()>;
-constexpr float expand_threshold = 0.8;
-constexpr float expire_threshold = 0.2;
-constexpr int occupied_rate_sample_period = 2000; // 2s
+struct TaskPack {
+    TaskType task;
+    uint64_t add_time{};
+};
+constexpr float expand_threshold = 0.95;
+constexpr float expire_threshold = 0.40;
+constexpr int occupied_rate_sample_period = 5000; // 5s
 
 static uint64_t get_time() {
     timeval t{};
@@ -40,14 +44,14 @@ class NPP::ElasticExecutorImpl: public NPP::Thread {
 
         void run() override {
             using namespace std::chrono_literals;
-            TaskType task;
+            TaskPack task;
             while (running) {
                 if (pause_lock.try_lock() && impl.taskQueue.try_pop(task)) {
                     checkpoint_lock.lock();
                     last_checkpoint_time = get_time();
                     checkpoint_lock.unlock();
                     running_task = true;
-                    task();
+                    task.task();
                     pause_lock.unlock();
                     running_task = false;
                     checkpoint_lock.lock();
@@ -70,7 +74,7 @@ class NPP::ElasticExecutorImpl: public NPP::Thread {
             }
             now = get_time();
             auto dur = now - cal_rate_start_time;
-            float ans = dur == 0 ? 0: float(occupied_time) / ((float)dur);
+            float ans = dur == 0 ? running_task: float(occupied_time) / ((float)dur);
             if (now - cal_rate_start_time > occupied_rate_sample_period) {
                 occupied_time = 0;
                 cal_rate_start_time = now;
@@ -96,14 +100,15 @@ class NPP::ElasticExecutorImpl: public NPP::Thread {
         }
     };
 
-    using TaskQueue = tbb::concurrent_queue<TaskType>;
+
+    using TaskQueue = tbb::concurrent_queue<TaskPack>;
     TaskQueue taskQueue;
     std::list<std::unique_ptr<WorkerThread>> workers;
     bool running = true;
 public:
     void execute(TaskType &&func) {
-        logd("add to elastic executor.");
-        taskQueue.push(std::move(func));
+        // logd("add to elastic executor.");
+        taskQueue.push({std::move(func), get_time()});
     }
 
     void run() override {
@@ -111,13 +116,14 @@ public:
         while (running) {
            float average_rate = 0;
            std::stringstream ss;
+           ss << '[';
            for (auto & worker : workers) {
-               ss << worker->get_occupied_rate() << ' ';
                average_rate += worker->get_occupied_rate();
+               ss << worker->get_occupied_rate()<<", ";
            }
-           average_rate = !workers.empty() ? average_rate / (float)workers.size(): 0;
-           ss << " | " <<  average_rate;
-           logd("ElasticExecutor workers: {}, load {} , queue size: {}", workers.size(), ss.str(), taskQueue.unsafe_size());
+            average_rate = !workers.empty() ? average_rate / (float)workers.size(): 0;
+           ss << average_rate << ']';
+           logd("ElasticExecutor workers: {}, load: {}, queue size: {}", workers.size(), ss.str(), taskQueue.unsafe_size());
            if (average_rate >= expand_threshold || workers.empty()) {
                if (taskQueue.unsafe_size() > 0) {
                    auto worker = std::make_unique<WorkerThread>(*this);
@@ -126,7 +132,7 @@ public:
                    logd("expand ! curren size: {}", workers.size());
                }
            }
-           if (average_rate < expire_threshold) {
+           if (average_rate < expire_threshold && workers.size() > 1) {
                 for (auto it = workers.begin(); it != workers.end(); it++) {
                     if ((*it)->try_pause()) {
                         workers.erase(it);

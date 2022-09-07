@@ -16,20 +16,26 @@ Task<void> myTask(int id, std::vector<int> sleeps) {
     for (int i: sleeps) {
         ss += i;
         logi("{} sleep {}", id, i);
-//        std::this_thread::sleep_for(std::chrono::seconds(i));
-        co_await std::chrono::seconds(i);
+        if (i % 2 == 0) {
+            std::this_thread::sleep_for(std::chrono::seconds(i));
+        } else {
+            co_await std::chrono::seconds(i);
+        }
     }
     logi("finish task {} {}s {}s", id, time(nullptr) - s, ss);
     co_return ;
 }
 
-Task<void> runTask() {
+Task<void, NoopExecutor> runTask() {
     time_t start_time = time(nullptr);
     Task<void> d[] = {
         myTask(0, {1, 2, 3, 4, 5}),
         myTask(1, { 2, 4, 6, 8, 10 }),
         myTask(2, { 3, 2, 3, 4, 5 }),
         myTask(3, { 1, 2, 1, 4, 5 }),
+        myTask(4, { 1, 2, 1, 4, 5 }),
+        myTask(5, { 1, 2, 1, 4, 5 }),
+        myTask(6, { 1, 2, 1, 4, 5 }),
     };
     logi("All task emitted!");
     for (int i = 0; i < 4; i++) {
