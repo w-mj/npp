@@ -37,3 +37,6 @@ bool NPP::Thread::isFinished() const {
     return finished;
 }
 
+NPP::Thread::~Thread() {
+    join();
+}
