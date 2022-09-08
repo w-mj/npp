@@ -12,6 +12,7 @@
 #include <tbb/concurrent_queue.h>
 #include <task/Task.h>
 #include <task/Channel.h>
+#include "basic/Exception.h"
 
 namespace NPP {
 
@@ -32,6 +33,9 @@ namespace NPP {
     } __attribute((packed));
 
     class NetworkManager {
+    public:
+        DEFINE_EXCEPTION(SendError);
+    private:
         int myRank;
         std::atomic<bool> running;
         int sockfd;
@@ -52,7 +56,7 @@ namespace NPP {
         void registerTarget(int rank, uint32_t ip, uint16_t port);
         void registerTarget(int rank, std::string_view ip, uint16_t port);
         // 发送数据
-        bool sendMessage(int rank, Bytes data, int retry=0);
+        Task<void> sendMessage(int rank, Bytes data, int retry=0);
         // 阻塞，直到收到消息
         Task<std::shared_ptr<Bytes>> getMessage();
     private:

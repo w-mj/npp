@@ -12,7 +12,7 @@ struct Result {
 
   explicit Result() = default;
 
-  explicit Result(T &&value) : _value(std::move(value)) {}
+  explicit Result(T value) : _value(std::move(value)) {}
 
   explicit Result(std::exception_ptr &&exception_ptr) : _exception_ptr(exception_ptr) {}
 
@@ -20,7 +20,7 @@ struct Result {
     if (_exception_ptr) {
       std::rethrow_exception(_exception_ptr);
     }
-    return std::move(_value);
+    return _value;
   }
 
  private:

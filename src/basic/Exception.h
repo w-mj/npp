@@ -44,4 +44,6 @@ public:
 
 } // NPP
 
+#define DEFINE_EXCEPTION(name) struct name: public NPP::Exception {explicit name(const char* s): Exception(s) {}}
+
 #endif //NPP_EXCEPTION_H

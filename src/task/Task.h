@@ -86,7 +86,10 @@ struct Task {
   }
 
   ~Task() {
-    if (handle) handle.destroy();
+    if (handle) {
+        get_result();
+        handle.destroy();
+    }
   }
 
  private:

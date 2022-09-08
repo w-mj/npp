@@ -45,7 +45,7 @@ namespace NPP {
         server.sin_family = AF_INET;
         server.sin_port = value->second.port;
 
-        if (connect(sock, (struct sockaddr *)&server , sizeof(server)) < 0) {
+        if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
             return -1;
         }
         running.wait(false);
@@ -69,7 +69,7 @@ namespace NPP {
         constexpr int epoll_event_size = 256;
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if(sockfd == -1){
+        if (sockfd == -1) {
             loge("socket error!");
             co_return;
         }
@@ -83,8 +83,8 @@ namespace NPP {
         serv_addr.sin_port = htons(listenPort);
         serv_addr.sin_addr.s_addr = htonl(INADDR_ANY); // 任意本地ip
 
-        int ret = bind(sockfd, (struct sockaddr*)&serv_addr,sizeof(serv_addr));
-        if(ret == -1){
+        int ret = bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+        if (ret == -1) {
             loge("bind error!");
             co_return;
         }
@@ -93,7 +93,7 @@ namespace NPP {
 
         //创建epoll
         epoll_fd = epoll_create(epoll_event_size);
-        if(epoll_fd == -1){
+        if (epoll_fd == -1) {
             loge("epoll_create error!");
             co_return;
         }
@@ -102,46 +102,45 @@ namespace NPP {
         struct epoll_event ev{};   //epoll事件结构体
         struct epoll_event events[epoll_event_size];  //事件监听队列
 
-        ev.events = EPOLLIN ;
+        ev.events = EPOLLIN;
         ev.data.fd = sockfd;
 
         int ret2 = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &ev);
-        if(ret2 == -1){
+        if (ret2 == -1) {
             loge("epoll_ctl error!");
             co_return;
         }
         socklen_t socklen = sizeof(serv_addr);
-        getsockname(sockfd, (struct sockaddr*)&serv_addr, &socklen);
+        getsockname(sockfd, (struct sockaddr *) &serv_addr, &socklen);
         listenPort = ntohs(serv_addr.sin_port);
         logd("start listen at {}", listenPort);
         // inited
         running.store(true);
         running.notify_all();
-        while(running){
+        while (running) {
             int nfds = epoll_wait(epoll_fd, events, epoll_event_size, 120);
-            if(nfds == -1){
+            if (nfds == -1) {
                 loge("epoll_wait error!");
                 co_return;
             }
-            for(int i = 0; i < nfds; ++i){
-                if(events[i].data.fd == sockfd){
+            for (int i = 0; i < nfds; ++i) {
+                if (events[i].data.fd == sockfd) {
                     // 接受新连接
-                    int connfd = accept(sockfd, (struct sockaddr*)&clit_addr, &clit_len);
-                    if(connfd == -1){
+                    int connfd = accept(sockfd, (struct sockaddr *) &clit_addr, &clit_len);
+                    if (connfd == -1) {
                         loge("accept error! errno: {}", strerror(errno));
                         running = false;
-                        continue ;
+                        continue;
                     }
 
                     ev.events = EPOLLIN;
                     ev.data.fd = connfd;
-                    if(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &ev) == -1){
+                    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &ev) == -1) {
                         loge("epoll_ctl add error!");
-                        continue ;
+                        continue;
                     }
                     logd("accept target fd {}", connfd);
-                }
-                else{
+                } else {
                     // 读取数据
                     MessageHead message_head{};
                     int connfd = events[i].data.fd;
@@ -190,30 +189,40 @@ namespace NPP {
         co_return result;
     }
 
-    bool NetworkManager::sendMessage(int rank, Bytes data, int retry) {
-        int sock = getSendSocket(rank);
-        if (sock < 0) {
-            return retry > 0 && sendMessage(rank, std::move(data), retry - 1);
+    Task<void> NetworkManager::sendMessage(int rank, Bytes data, int retry) {
+        while (retry >= 0) {
+            int sock = getSendSocket(rank);
+            if (sock < 0) {
+                retry--;
+                if (retry < 0) {
+                    throw SendError(fmt::format("cannot get socket to {}", rank).c_str());
+                }
+                continue;
+            }
+            MessageHead head{};
+            head.size = static_cast<uint32_t>(data.size());
+            uint32_t verify = fix_verify_code;
+            iovec vec[3] = {
+                    {.iov_base = &head, .iov_len = sizeof(MessageHead)},
+                    {.iov_base = &data.as<char>(), .iov_len = data.size()},
+                    {.iov_base = &verify, .iov_len = sizeof(verify)}
+            };
+            size_t all_size = vec[0].iov_len + vec[1].iov_len + vec[2].iov_len;
+            ssize_t ret = writev(sock, vec, 3);
+            logd("send message rank: {}, fd: {}, size: {}, ret: {}", rank, sock, all_size, ret);
+            if (ret < 0) {
+                clearSendSocket(rank);
+                retry--;
+                if (retry < 0) {
+                    throw SendError(fmt::format("send msg to {} err, fd: {}, errno: {}", rank, sock, errno).c_str());
+                }
+                continue;
+            } else if (ret < all_size) {
+                throw SendError(fmt::format("send to {} not complete, {}<{}",ret ,ret, all_size).c_str());
+            }
+            break;
         }
-        MessageHead head{};
-        head.size = static_cast<uint32_t>(data.size());
-        uint32_t verify = fix_verify_code;
-        iovec vec[3] = {
-                {.iov_base = &head, .iov_len = sizeof(MessageHead)},
-                {.iov_base = &data.as<char>(), .iov_len = data.size()},
-                {.iov_base = &verify, .iov_len = sizeof(verify)}
-        };
-        size_t all_size = vec[0].iov_len + vec[1].iov_len + vec[2].iov_len;
-        ssize_t ret = writev(sock, vec, 3);
-        logd("send message rank: {}, fd: {}, size: {}, ret: {}", rank, sock, all_size, ret);
-        if (ret < 0) {
-            clearSendSocket(rank);
-            return retry > 0 && sendMessage(rank, std::move(data), retry - 1);
-        } else if (ret < all_size) {
-            loge("!!!WARNING!!! sendMessage {} < {}", ret, all_size);
-            return false;
-        }
-        return true;
+        co_return;
     }
 
     void NetworkManager::registerTarget(int rank, uint32_t ip, uint16_t port) {
@@ -236,7 +245,7 @@ namespace NPP {
         struct in_addr **addr_list;
         int i;
 
-        if ((he = gethostbyname( ip.data() ) ) == nullptr) {
+        if ((he = gethostbyname(ip.data())) == nullptr) {
             in_addr addr{};
             inet_aton(ip.data(), &addr);
             registerTarget(rank, ntohl(addr.s_addr), port);
@@ -292,7 +301,7 @@ namespace NPP {
         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, connfd, nullptr);
     }
 
-    void NetworkManager::readNormalMessage(int connfd, const MessageHead& message_head) {
+    void NetworkManager::readNormalMessage(int connfd, const MessageHead &message_head) {
         // read content
         constexpr int receive_buff_size = 4096;
         char receive_buff[receive_buff_size];
@@ -321,15 +330,15 @@ namespace NPP {
         processMessage(message_head, std::move(data), verify_code);
     }
 
-    void NetworkManager::readRankReportMessage(int connfd, const MessageHead& message_head) {
+    void NetworkManager::readRankReportMessage(int connfd, const MessageHead &message_head) {
         uint32_t verify_code = readVerify(connfd);
         assert(verify_code == fix_verify_code);
         struct sockaddr_in addr{};
         socklen_t socklen = sizeof(addr);
-        getsockname(connfd, (struct sockaddr*)&addr, &socklen);
-        uint32_t  ip = addr.sin_addr.s_addr;  // 网络字节序
+        getsockname(connfd, (struct sockaddr *) &addr, &socklen);
+        uint32_t ip = addr.sin_addr.s_addr;  // 网络字节序
         uint16_t port = message_head.reserved;  // 网络字节序
-        int rank = (int)message_head.size;
+        int rank = (int) message_head.size;
         Target t{.rank = rank, .ip = ip, .port = port, .sock = connfd};
         SockMap::value_type value(rank, t);
         socks.insert(value);
