@@ -5,7 +5,7 @@
 #include <network/NetworkManager.h>
 
 
-int main(int argc, char **argv) {
+Task<void> testNetwork(int argc, char **argv) {
     int myRank = 0;
     if (argc == 2) {
         myRank = 1;
@@ -26,8 +26,8 @@ int main(int argc, char **argv) {
             };
             execv(argv[0], aa);
         }
-        auto data = network.getMessage();
-        printf("0: receive : %s\n", &data.as<char>());
+        auto data = co_await network.getMessage();
+        printf("0: receive : %s\n", &(data->as<char>()));
         network.sendMessage(1, {"aaa", 4});
         sleep(2);
     } else {
@@ -36,7 +36,12 @@ int main(int argc, char **argv) {
         NPP::Bytes data(s, strlen(s) + 1);
         network.sendMessage(0, std::move(data));
 
-        data = network.getMessage();
-        printf("1: receive : %s\n", &data.as<char>());
+        auto res = co_await network.getMessage();
+        printf("1: receive : %s\n", &res->as<char>());
     }
+}
+
+int main(int argc, char **argv) {
+    testNetwork(argc, argv).get_result();
+    return 0;
 }

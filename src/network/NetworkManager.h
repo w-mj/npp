@@ -8,9 +8,10 @@
 #include <string>
 #include <unordered_map>
 #include <basic/Bytes.h>
-#include <basic/Thread.h>
 #include <tbb/concurrent_hash_map.h>
 #include <tbb/concurrent_queue.h>
+#include <task/Task.h>
+#include <task/Channel.h>
 
 namespace NPP {
 
@@ -23,15 +24,21 @@ namespace NPP {
 
         uint16_t reserved;
         uint32_t size;
+
+        std::string repr() const {
+            int t = type;
+            return fmt::format("MessageHead[type:{}, size:{}]", t, (int)size);
+        }
     } __attribute((packed));
 
-    class NetworkManager : Thread {
+    class NetworkManager {
         int myRank;
         bool running;
         int sockfd;
         int epoll_fd;
         uint16_t listenPort;  // 服务器监听地址，使用本机字节序
-        void run() override;
+        Task<void, NewThreadExecutor> run();
+        Task<void, NewThreadExecutor> networkTask;
     public:
         explicit NetworkManager(int myRank);
         ~NetworkManager();
@@ -47,7 +54,7 @@ namespace NPP {
         // 发送数据
         bool sendMessage(int rank, Bytes data, int retry=0);
         // 阻塞，直到收到消息
-        Bytes getMessage();
+        Task<std::shared_ptr<Bytes>> getMessage();
     private:
         struct Target {
             int rank = -1;
@@ -59,7 +66,7 @@ namespace NPP {
         SockMap socks;
         int getSendSocket(int rank);
         void clearSendSocket(int rank);
-        void processMessage(MessageHead head, Bytes content, uint32_t verify);
+        Task<void> processMessage(MessageHead head, Bytes content, uint32_t verify);
         void closeSocket(int sock) const;
 
         void readNormalMessage(int connfd, const MessageHead& message_head);
@@ -67,8 +74,9 @@ namespace NPP {
         bool sendRankReportMessage(int connfd) const;
         uint32_t readVerify(int connfd);
 
-        using MessageQueue = tbb::concurrent_bounded_queue<Bytes>;
-        MessageQueue messageQueue;
+//        using MessageQueue = tbb::concurrent_bounded_queue<Bytes>;
+//        MessageQueue messageQueue;
+        Channel<std::shared_ptr<Bytes>> messageChannel;
     };
 
 } // NPP

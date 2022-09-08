@@ -3,7 +3,6 @@
 //
 
 #include "NetworkManager.h"
-#include <thread>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
@@ -11,6 +10,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <cassert>
+#include <basic/Logger.h>
 
 
 static constexpr uint32_t fix_verify_code = 0xDEADFACE;   // 3735943886
@@ -21,7 +21,8 @@ namespace NPP {
 
     void NetworkManager::startServer(uint16_t port) {
         this->listenPort = port;
-        start();
+        networkTask = std::move(run());
+        // start();
     }
 
     int NetworkManager::getSendSocket(int rank) {
@@ -61,13 +62,13 @@ namespace NPP {
         return sock;
     }
 
-    void NetworkManager::run() {
+    Task<void, NewThreadExecutor> NetworkManager::run() {
         constexpr int epoll_event_size = 256;
 
         sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if(sockfd == -1){
-            printf("socket error!\n");
-            return;
+            loge("socket error!");
+            co_return;
         }
 
         struct sockaddr_in serv_addr{};
@@ -81,8 +82,8 @@ namespace NPP {
 
         int ret = bind(sockfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
         if(ret == -1){
-            printf("bind error!\n");
-            return;
+            loge("bind error!");
+            co_return;
         }
 
         listen(sockfd, 10);
@@ -90,8 +91,8 @@ namespace NPP {
         //创建epoll
         epoll_fd = epoll_create(epoll_event_size);
         if(epoll_fd == -1){
-            printf("epoll_create error!\n");
-            return ;
+            loge("epoll_create error!");
+            co_return;
         }
 
         //向epoll注册sockfd监听事件
@@ -103,36 +104,37 @@ namespace NPP {
 
         int ret2 = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &ev);
         if(ret2 == -1){
-            printf("epoll_ctl error!\n");
-            return ;
+            loge("epoll_ctl error!");
+            co_return;
         }
         socklen_t socklen = sizeof(serv_addr);
         getsockname(sockfd, (struct sockaddr*)&serv_addr, &socklen);
         listenPort = ntohs(serv_addr.sin_port);
-
+        logd("start listen at {}", listenPort);
         // inited
         running = true;
         while(running){
             int nfds = epoll_wait(epoll_fd, events, epoll_event_size, 120);
             if(nfds == -1){
-                printf("epoll_wait error!\n");
-                return ;
+                loge("epoll_wait error!");
+                co_return;
             }
             for(int i = 0; i < nfds; ++i){
                 if(events[i].data.fd == sockfd){
                     // 接受新连接
                     int connfd =  accept(sockfd, (struct sockaddr*)&clit_addr, &clit_len);
                     if(connfd == -1){
-                        printf("accept error!\n");
-                        return ;
+                        loge("accept error!");
+                        co_return ;
                     }
 
                     ev.events = EPOLLIN;
                     ev.data.fd = connfd;
                     if(epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &ev) == -1){
-                        printf("epoll_ctl add error!\n");
-                        return;
+                        loge("epoll_ctl add error!");
+                        co_return;
                     }
+                    logd("accept target fd {}", connfd);
                 }
                 else{
                     // 读取数据
@@ -141,11 +143,12 @@ namespace NPP {
                     ssize_t ret1 = read(connfd, &message_head, sizeof(message_head));
                     if (ret1 <= 0) {
                         if (ret1 < 0) {
-                            printf("receive head error ret=%zd errno=%d.\n", ret1, errno);
+                            loge("receive head error ret=%zd errno=%d.", ret1, errno);
                         }
                         closeSocket(connfd);
                         continue;
                     }
+                    logd(message_head.repr());
                     switch (message_head.type) {
                         case 0: {
                             readNormalMessage(connfd, message_head);
@@ -156,13 +159,13 @@ namespace NPP {
                             break;
                         }
                         default: {
-                            printf("Unknown message type %d.\n", message_head.type);
+                            loge("Unknown message type %d.", message_head.type);
                         }
                     }
                 }
             }
         }
-        printf("server stop! %d\n", myRank);
+        loge("server stop! rank:{}", myRank);
         close(epoll_fd);
         close(sockfd);
     }
@@ -175,10 +178,11 @@ namespace NPP {
         this->listenPort = 0;
     }
 
-    Bytes NetworkManager::getMessage() {
-        Bytes result;
-        messageQueue.pop(result);
-        return result;
+    Task<std::shared_ptr<Bytes>> NetworkManager::getMessage() {
+        std::shared_ptr<Bytes> result;
+        result = co_await messageChannel.read();
+        // messageQueue.pop(result);
+        co_return result;
     }
 
     bool NetworkManager::sendMessage(int rank, Bytes data, int retry) {
@@ -200,14 +204,14 @@ namespace NPP {
             clearSendSocket(rank);
             return retry > 0 && sendMessage(rank, std::move(data), retry - 1);
         } else if (ret < all_size) {
-            printf("!!!WARNING!!! sendMessage %zd < %zd", ret, all_size);
+            loge("!!!WARNING!!! sendMessage {} < {}", ret, all_size);
             return false;
         }
         return true;
     }
 
     void NetworkManager::registerTarget(int rank, uint32_t ip, uint16_t port) {
-        printf("register Target %d %s:%d\n", rank, inet_ntoa({.s_addr = htonl(ip)}), port);
+        logd("register Target {} {}:{}", rank, inet_ntoa({.s_addr = htonl(ip)}), port);
         SockMap::accessor accessor;
         if (socks.find(accessor, rank)) {
             accessor->second.ip = htonl(ip);
@@ -242,8 +246,9 @@ namespace NPP {
         return listenPort;
     }
 
-    void NetworkManager::processMessage(MessageHead head, Bytes content, uint32_t verify) {
-        messageQueue.push(std::move(content));
+    Task<void> NetworkManager::processMessage(MessageHead head, Bytes content, uint32_t verify) {
+        // messageQueue.push(std::move(content));
+        co_await messageChannel.write(std::make_shared<Bytes>(std::move(content)));
     }
 
     void NetworkManager::stopServer() {
@@ -255,7 +260,7 @@ namespace NPP {
             close(epoll_fd);
         }
         listenPort = 0;
-        join();
+        // join();
     }
 
     void NetworkManager::clearSendSocket(int rank) {
@@ -273,6 +278,7 @@ namespace NPP {
     }
 
     void NetworkManager::closeSocket(int connfd) const {
+        logd("socket close {}", connfd);
         close(connfd);
         epoll_ctl(epoll_fd, EPOLL_CTL_DEL, connfd, nullptr);
     }
@@ -302,8 +308,8 @@ namespace NPP {
 
         verify_code = readVerify(connfd);
         assert(verify_code == fix_verify_code);
-
-        processMessage(message_head, std::move(data), verify_code);
+        logd("receive message size: {}, verify: {:#x}", all_read_size, verify_code);
+        processMessage(message_head, std::move(data), verify_code).get_result();
     }
 
     void NetworkManager::readRankReportMessage(int connfd, const MessageHead& message_head) {
@@ -318,6 +324,7 @@ namespace NPP {
         Target t{.rank = rank, .ip = ip, .port = port, .sock = connfd};
         SockMap::value_type value(rank, t);
         socks.insert(value);
+        logd("receive rank: {}, ip: {}, port: {}, sock: {}", rank, ip, port, connfd);
     }
 
     uint32_t NetworkManager::readVerify(int connfd) {

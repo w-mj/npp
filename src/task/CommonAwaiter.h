@@ -14,7 +14,7 @@ struct Awaiter {
 
   using ResultType = R;
 
-  virtual bool await_ready() const { return false; }
+  [[nodiscard]] virtual bool await_ready() const { return false; }
 
   void await_suspend(std::coroutine_handle<> handle) {
     this->_handle = handle;

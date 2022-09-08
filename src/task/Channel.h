@@ -90,18 +90,18 @@ struct Channel {
   void remove_writer(WriterAwaiter<ValueType> *writer_awaiter) {
     std::lock_guard lock(channel_lock);
     auto size = writer_list.remove(writer_awaiter);
-    debug("remove writer ", size);
+    logd("remove writer {}", size);
   }
 
   void remove_reader(ReaderAwaiter<ValueType> *reader_awaiter) {
     std::lock_guard lock(channel_lock);
     auto size = reader_list.remove(reader_awaiter);
-    debug("remove reader ", size);
+    logd("remove reader {}", size);
   }
 
   auto write(ValueType value) {
     check_closed();
-    return WriterAwaiter<ValueType>{this, value};
+    return WriterAwaiter<ValueType>{this, std::move(value)};
   }
 
   auto operator<<(ValueType value) {

@@ -14,3 +14,5 @@ include_directories(third/oneTBB/include)
 add_subdirectory(src)
 
 add_subdirectory(test)
+
+add_executable(main main.cpp)

@@ -16,7 +16,9 @@ struct WriterAwaiter : public Awaiter<void> {
   Channel<ValueType> *channel;
   ValueType _value;
 
-  WriterAwaiter(Channel<ValueType> *channel, ValueType value) : channel(channel), _value(value) {}
+  WriterAwaiter(Channel<ValueType> *channel, const ValueType& value) : channel(channel), _value(value) {}
+
+  WriterAwaiter(Channel<ValueType> *channel, ValueType&& value) : channel(channel), _value(std::move(value)) {}
 
   WriterAwaiter(WriterAwaiter &&other) noexcept
       : Awaiter(other),
@@ -45,7 +47,7 @@ struct ReaderAwaiter : public Awaiter<ValueType> {
   explicit ReaderAwaiter(Channel<ValueType> *channel) : Awaiter<ValueType>(), channel(channel) {}
 
   ReaderAwaiter(ReaderAwaiter &&other) noexcept
-      : Awaiter<ValueType>(other),
+      : Awaiter<ValueType>(std::move(other)),
         channel(std::exchange(other.channel, nullptr)),
         p_value(std::exchange(other.p_value, nullptr)) {}
 

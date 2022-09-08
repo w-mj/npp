@@ -9,6 +9,7 @@
 #include <mutex>
 #include <functional>
 #include <future>
+#include "basic/Logger.h"
 
 class AbstractExecutor {
  public:
@@ -25,6 +26,7 @@ class NoopExecutor : public AbstractExecutor {
 class NewThreadExecutor : public AbstractExecutor {
  public:
   void execute(std::function<void()> &&func) override {
+    logd("NewThreadExecutor!");
     std::thread(func).detach();
   }
 };
