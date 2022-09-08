@@ -21,6 +21,7 @@ namespace NPP {
     void NetworkManager::startServer(uint16_t port) {
         this->listenPort = port;
         networkTask = std::move(run());
+        running.wait(false);
         // start();
     }
 

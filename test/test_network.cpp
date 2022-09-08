@@ -7,7 +7,7 @@
 #include <wait.h>
 
 
-Task<void> testNetwork(int argc, char **argv) {
+NPP::Task<void> testNetwork(int argc, char **argv) {
     NPP::Exception::initExceptionHandler();
     int myRank = 0;
     if (argc == 2) {
@@ -18,9 +18,6 @@ Task<void> testNetwork(int argc, char **argv) {
     network.startServer();
     if (myRank == 0) {
         // server
-        while (network.getMyPort() == 0) {
-            ;
-        }
         printf("network thread start with port %d\n", network.getMyPort());
         pid_t child = fork();
         if (child == 0) {
@@ -33,14 +30,14 @@ Task<void> testNetwork(int argc, char **argv) {
         }
         auto data = co_await network.getMessage();
         printf("0: receive : %s\n", &(data->as<char>()));
-        network.sendMessage(1, {"aaa", 4});
+        network.sendMessage(1, {"aaa", 4}).detach();
         printf("wait for child\n");
         wait(nullptr);
     } else {
         network.registerTarget(0, "127.0.0.1", atoi(argv[1]));
         const char *s = "Hello Network!";
         NPP::Bytes data(s, strlen(s) + 1);
-        network.sendMessage(0, std::move(data));
+        network.sendMessage(0, std::move(data)).detach();
 
         auto res = co_await network.getMessage();
         printf("1: receive : %s\n", &res->as<char>());
