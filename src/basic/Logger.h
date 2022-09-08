@@ -13,10 +13,11 @@ const char *file_name(const char *path);
 
 namespace NPP {
     class Logger {
-       std::string name;
+       std::string prefix;
        bool time;
        std::ostream& out;
     public:
+        void setPrefix(const std::string& s);
         Logger(std::string name, bool showTime);
         void print(std::string_view);
 

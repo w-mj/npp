@@ -41,8 +41,8 @@ namespace NPP {
     void Logger::print(std::string_view sv) {
         static std::mutex write_lock;
         std::lock_guard<std::mutex> guard(write_lock);
-        if (!name.empty()) {
-            out << name;
+        if (!prefix.empty()) {
+            out << prefix;
         }
         if (time) {
             out << '[' << get_time_str() << ']';
@@ -50,7 +50,11 @@ namespace NPP {
         out << sv << std::endl;
     }
 
-    Logger::Logger(std::string name, bool showTime): name(std::move(name)), time(showTime), out(std::cout) {
+    Logger::Logger(std::string name, bool showTime): prefix(std::move(name)), time(showTime), out(std::cout) {
+    }
+
+    void Logger::setPrefix(const std::string& s) {
+        prefix = s;
     }
 
 } // NPP

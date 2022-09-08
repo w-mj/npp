@@ -8,4 +8,5 @@ add_library(NPP
         task/ElasticExecutor.cpp
         )
 
-target_link_libraries(NPP fmt::fmt tbb)
+target_link_libraries(NPP fmt::fmt tbb -lasan)
+target_compile_options(NPP PUBLIC -DDEBUG -fsanitize=address)

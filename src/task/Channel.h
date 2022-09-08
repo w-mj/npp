@@ -108,6 +108,13 @@ struct Channel {
     return write(value);
   }
 
+
+  void write_sync(ValueType value) {
+      [this](ValueType value)->Task<void> {
+          co_await write(std::move(value));
+      }(std::move(value)).get_result();
+  }
+
   auto read() {
     check_closed();
     return ReaderAwaiter<ValueType>{this};

@@ -3,13 +3,17 @@
 //
 
 #include <network/NetworkManager.h>
+#include <basic/Exception.h>
+#include <wait.h>
 
 
 Task<void> testNetwork(int argc, char **argv) {
+    NPP::Exception::initExceptionHandler();
     int myRank = 0;
     if (argc == 2) {
         myRank = 1;
     }
+    NPP::Log::global.setPrefix(fmt::format("[rank={}]", myRank));
     NPP::NetworkManager network(myRank);
     network.startServer();
     if (myRank == 0) {
@@ -18,7 +22,8 @@ Task<void> testNetwork(int argc, char **argv) {
             ;
         }
         printf("network thread start with port %d\n", network.getMyPort());
-        if (fork() == 0) {
+        pid_t child = fork();
+        if (child == 0) {
             char buf[20];
             sprintf(buf, "%d", network.getMyPort());
             char *const aa[] = {
@@ -29,7 +34,8 @@ Task<void> testNetwork(int argc, char **argv) {
         auto data = co_await network.getMessage();
         printf("0: receive : %s\n", &(data->as<char>()));
         network.sendMessage(1, {"aaa", 4});
-        sleep(2);
+        printf("wait for child\n");
+        wait(nullptr);
     } else {
         network.registerTarget(0, "127.0.0.1", atoi(argv[1]));
         const char *s = "Hello Network!";

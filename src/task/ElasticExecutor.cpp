@@ -1,7 +1,7 @@
 //
 // Created by WMJ on 2022/9/7.
 //
-
+#undef DEBUG
 #include "ElasticExecutor.h"
 #include "basic/Thread.h"
 #include "tbb/concurrent_queue.h"

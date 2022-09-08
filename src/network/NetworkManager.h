@@ -33,12 +33,12 @@ namespace NPP {
 
     class NetworkManager {
         int myRank;
-        bool running;
+        std::atomic<bool> running;
         int sockfd;
         int epoll_fd;
         uint16_t listenPort;  // 服务器监听地址，使用本机字节序
-        Task<void, NewThreadExecutor> run();
-        Task<void, NewThreadExecutor> networkTask;
+        Task<void> run();
+        Task<void> networkTask;
     public:
         explicit NetworkManager(int myRank);
         ~NetworkManager();
@@ -66,7 +66,7 @@ namespace NPP {
         SockMap socks;
         int getSendSocket(int rank);
         void clearSendSocket(int rank);
-        Task<void> processMessage(MessageHead head, Bytes content, uint32_t verify);
+        void processMessage(MessageHead head, Bytes content, uint32_t verify);
         void closeSocket(int sock) const;
 
         void readNormalMessage(int connfd, const MessageHead& message_head);
