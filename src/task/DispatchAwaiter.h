@@ -5,26 +5,27 @@
 #ifndef CPPCOROUTINES_04_TASK_DISPATCHAWAITER_H_
 #define CPPCOROUTINES_04_TASK_DISPATCHAWAITER_H_
 
-#include "coroutine_common.h"
+#include "coroutine"
 #include "Executor.h"
 
-struct DispatchAwaiter {
+namespace NPP {
+    struct DispatchAwaiter {
 
-  explicit DispatchAwaiter(AbstractExecutor *executor) noexcept
-      : _executor(executor) {}
+        explicit DispatchAwaiter(AbstractExecutor *executor) noexcept
+                : _executor(executor) {}
 
-  bool await_ready() const { return false; }
+        bool await_ready() const { return false; }
 
-  void await_suspend(std::coroutine_handle<> handle) const {
-    _executor->execute([handle]() {
-      handle.resume();
-    });
-  }
+        void await_suspend(std::coroutine_handle<> handle) const {
+            _executor->execute([handle]() {
+                handle.resume();
+            });
+        }
 
-  void await_resume() {}
+        void await_resume() {}
 
- private:
-  AbstractExecutor *_executor;
+    private:
+        AbstractExecutor *_executor;
+    };
 };
-
 #endif //CPPCOROUTINES_04_TASK_DISPATCHAWAITER_H_

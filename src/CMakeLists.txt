@@ -6,6 +6,7 @@ add_library(NPP
         basic/Thread.cpp
         basic/Logger.cpp
         task/ElasticExecutor.cpp
+        task/Task.cpp
         )
 
 target_link_libraries(NPP fmt::fmt tbb -lasan)
