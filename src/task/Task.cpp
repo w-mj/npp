@@ -8,8 +8,8 @@ void NPP::TaskKeeper::check() {
     for (auto it = tasks.begin(); it != tasks.end();) {
         if (it->check()) {
             logd("TaskKeeper drop task.");
-            it->del();
             tasks.erase(it);
+            // it->del();
         } else {
             it++;
         }

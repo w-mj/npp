@@ -19,7 +19,7 @@ namespace NPP {
         }
 
         template<typename _Rep, typename _Period>
-        explicit SleepAwaiter(std::chrono::duration<_Rep, _Period> &&duration) noexcept
+        explicit SleepAwaiter(std::chrono::duration<_Rep, _Period> duration) noexcept
                 : _duration(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()) {
         }
 

@@ -41,7 +41,7 @@ namespace NPP {
         }
 
         template<typename _Rep, typename _Period>
-        auto await_transform(std::chrono::duration<_Rep, _Period> &&duration) {
+        auto await_transform(std::chrono::duration<_Rep, _Period> duration) {
             return await_transform(SleepAwaiter(duration));
         }
 

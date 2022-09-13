@@ -9,7 +9,7 @@
 #include <basic/Exception.h>
 using namespace std;
 
-Task<void> myTask(int id, std::vector<int> sleeps) {
+NPP::Task<void> myTask(int id, std::vector<int> sleeps) {
     logi("start task {}", id);
     time_t s = time(nullptr);
     int ss = 0;
@@ -26,20 +26,29 @@ Task<void> myTask(int id, std::vector<int> sleeps) {
     co_return ;
 }
 
-Task<void, NoopExecutor> runTask() {
+NPP::Task<void> runTask() {
     time_t start_time = time(nullptr);
-    Task<void> d[] = {
-        myTask(0, {1, 2, 3, 4, 5}),
-        myTask(1, { 2, 4, 6, 8, 10 }),
-        myTask(2, { 3, 2, 3, 4, 5 }),
-        myTask(3, { 1, 2, 1, 4, 5 }),
-        myTask(4, { 1, 2, 1, 4, 5 }),
-        myTask(5, { 1, 2, 1, 4, 5 }),
-        myTask(6, { 1, 2, 1, 4, 5 }),
-    };
+//    NPP::Task<void> d[] = {
+//        myTask(0, {1, 2, 3, 4, 5}),
+//        myTask(1, { 2, 4, 6, 8, 10 }),
+//        myTask(2, { 3, 2, 3, 4, 5 }),
+//        myTask(3, { 1, 2, 1, 4, 5 }),
+//        myTask(4, { 1, 2, 1, 4, 5 }),
+//        myTask(5, { 1, 2, 1, 4, 5 }),
+//        myTask(6, { 1, 2, 1, 4, 5 }),
+//    };
+
+    myTask(0, {1, 2, 3, 4, 5}).detach();
+    myTask(1, { 2, 4, 6, 8, 10 }).detach();
+    myTask(2, { 3, 2, 3, 4, 5 }).detach();
+    myTask(3, { 1, 2, 1, 4, 5 }).detach();
+    myTask(4, { 1, 2, 1, 4, 5 }).detach();
+    myTask(5, { 1, 2, 1, 4, 5 }).detach();
+    myTask(6, { 1, 2, 1, 4, 5 }).detach();
     logi("All task emitted!");
     for (int i = 0; i < 4; i++) {
-        d[i].get_result();
+        // d[i].get_result();
+//        d[i].detach();
     }
     logi("All task finished! {}s", time(nullptr) - start_time);
     co_return;
@@ -49,5 +58,7 @@ int main() {
     tick();
     NPP::Exception::initExceptionHandler();
     runTask().get_result();
+    sleep(20);
+    myTask(7, { 1, 2, 1, 4, 5 }).detach();
     return 0;
 }

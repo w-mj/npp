@@ -30,10 +30,10 @@ namespace NPP {
             T *b = new T(std::move(t));
             check();
             tasks.push_back({
-                                    .check = [b]() { return b->entirely_finish(); },
-                                    .del = [b]() { delete b; },
-                                    .wait = [b]() { b->get_result(); }
-                            });
+                .check = [b]() { return b->entirely_finish(); },
+                .del = [b]() { delete b; },
+                .wait = [b]() { b->get_result(); }
+            });
         }
 
         ~TaskKeeper() {
